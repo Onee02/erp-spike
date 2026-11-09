@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pl">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,29 +9,29 @@
 <body>
 <header><div class="inner">
   <span class="brand">Mini-ERP</span>
-  <nav><a href="/" class="active">Klient</a><a href="/ops">Operacje</a></nav>
-  <span style="margin-left:auto" class="label">Szybkość systemu: <span id="speed" class="badge">-</span></span>
+  <nav><a href="/" class="active">Customer</a><a href="/ops">Operations</a></nav>
+  <span style="margin-left:auto" class="label">System speed: <span id="speed" class="badge">-</span></span>
 </div></header>
 <div id="crash" class="crash" hidden>
-  <h2>Aplikacja przestała działać</h2>
+  <h2>The application stopped working</h2>
   <p id="crash-msg"></p>
-  <button onclick="location.reload()">Odśwież stronę</button>
+  <button onclick="location.reload()">Reload page</button>
 </div>
 <main>
-  <h1>Widok klienta</h1>
-  <p class="sub">Tak system widzi jeden klient (tenant): jego zamówienia i raport miesięczny.</p>
+  <h1>Customer view</h1>
+  <p class="sub">How the system looks to one customer (tenant): their orders and monthly report.</p>
 
   <div class="row">
-    <label for="tenant">Klient:</label>
+    <label for="tenant">Customer:</label>
     <select id="tenant"></select>
     <span id="plan" class="badge"></span>
   </div>
 
   <div class="two">
     <section class="card">
-      <h2 style="margin-top:0;font-size:17px">Ostatnie zamówienia</h2>
+      <h2 style="margin-top:0;font-size:17px">Latest orders</h2>
       <table>
-        <thead><tr><th>Nr</th><th>Data</th><th>Status</th><th class="num">Kwota</th></tr></thead>
+        <thead><tr><th>No.</th><th>Date</th><th>Status</th><th class="num">Amount</th></tr></thead>
         <tbody id="orders"></tbody>
       </table>
       <p class="msg" id="orders-msg"></p>
@@ -39,22 +39,22 @@
 
     <div>
       <section class="card" style="margin-bottom:16px">
-        <h2 style="margin-top:0;font-size:17px">Nowe zamówienie</h2>
+        <h2 style="margin-top:0;font-size:17px">New order</h2>
         <div class="row">
-          <input id="product" value="SKU-1" size="8" aria-label="Produkt">
-          <input id="qty" type="number" min="1" value="2" style="width:70px" aria-label="Ilość">
-          <input id="price" type="number" min="0.01" step="0.01" value="9.99" style="width:90px" aria-label="Cena">
-          <button id="add">Dodaj</button>
+          <input id="product" value="SKU-1" size="8" aria-label="Product">
+          <input id="qty" type="number" min="1" value="2" style="width:70px" aria-label="Quantity">
+          <input id="price" type="number" min="0.01" step="0.01" value="9.99" style="width:90px" aria-label="Price">
+          <button id="add">Add</button>
         </div>
         <p class="msg" id="add-msg"></p>
       </section>
 
       <section class="card">
-        <h2 style="margin-top:0;font-size:17px">Raport miesięczny</h2>
-        <div class="row"><button id="report">Wygeneruj raport</button></div>
+        <h2 style="margin-top:0;font-size:17px">Monthly report</h2>
+        <div class="row"><button id="report">Generate report</button></div>
         <p class="msg" id="report-msg"></p>
         <table>
-          <thead><tr><th>Miesiąc</th><th>Produkt</th><th class="num">Przychód</th></tr></thead>
+          <thead><tr><th>Month</th><th>Product</th><th class="num">Revenue</th></tr></thead>
           <tbody id="report-rows"></tbody>
         </table>
       </section>

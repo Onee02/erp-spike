@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const money = (n) => Number(n).toLocaleString("pl-PL", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = (n) => Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const TIMEOUT_MS = 5000;
 
@@ -37,18 +37,18 @@ async function loadTenants() {
 
 function showPlan() {
   const plan = $("tenant").selectedOptions[0].dataset.plan;
-  $("plan").textContent = plan === "enterprise" ? "wieloryb" : "mały klient";
+  $("plan").textContent = plan === "enterprise" ? "whale" : "small customer";
   $("plan").className = "badge" + (plan === "enterprise" ? " whale" : "");
 }
 
 async function loadOrders() {
-  $("orders-msg").textContent = "Ładowanie...";
+  $("orders-msg").textContent = "Loading...";
   const r = await api(`/t/${tenantId()}/orders?limit=10`);
   const rows = await r.json();
   $("orders").innerHTML = rows
     .map((o) => `<tr><td>${o.id}</td><td>${o.order_date}</td><td>${o.status}</td><td class="num">${money(o.total)}</td></tr>`)
     .join("");
-  $("orders-msg").textContent = rows.length ? "" : "Brak zamówień.";
+  $("orders-msg").textContent = rows.length ? "" : "No orders.";
 }
 
 async function addOrder() {
@@ -58,20 +58,20 @@ async function addOrder() {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   });
   await r.json();
-  $("add-msg").textContent = "Dodano zamówienie.";
+  $("add-msg").textContent = "Order added.";
   $("add").disabled = false;
   loadOrders();
 }
 
 async function runReport() {
   $("report").disabled = true;
-  $("report-msg").textContent = "Liczę...";
+  $("report-msg").textContent = "Calculating...";
   $("report-rows").innerHTML = "";
   const t0 = performance.now();
   const r = await api(`/t/${tenantId()}/reports/monthly`);
   const ms = Math.round(performance.now() - t0);
   const rows = await r.json();
-  $("report-msg").textContent = `Gotowe w ${ms} ms (${rows.length} wierszy, pokazuję 10)`;
+  $("report-msg").textContent = `Done in ${ms} ms (${rows.length} rows, showing 10)`;
   $("report-rows").innerHTML = rows.slice(0, 10)
     .map((x) => `<tr><td>${x.month}</td><td>${x.product}</td><td class="num">${money(x.revenue)}</td></tr>`)
     .join("");
