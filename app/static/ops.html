@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mini-ERP - Operacje</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header><div class="inner">
+  <span class="brand">Mini-ERP</span>
+  <nav><a href="/">Klient</a><a href="/ops" class="active">Operacje</a></nav>
+</div></header>
+<main>
+  <h1>Operacje</h1>
+  <p class="sub">Panel do przygotowania scenariusza: duży klient w bazie i koniec miesiąca.</p>
+
+  <div class="two">
+    <section class="card">
+      <b>Klient wieloryb</b>
+      <div class="msg" id="whale-state">-</div>
+      <div class="row" style="margin-top:12px">
+        <button class="ghost" id="whale-remove">Usuń wieloryba</button>
+        <button id="whale-add">Dodaj wieloryba</button>
+      </div>
+      <p class="msg" id="whale-msg"></p>
+    </section>
+
+    <section class="card">
+      <b>Koniec miesiąca</b>
+      <div class="msg" id="sim-state">-</div>
+      <div class="row" style="margin-top:12px">
+        <button id="sim-toggle">Symuluj koniec miesiąca</button>
+      </div>
+      <p class="msg">Dział finansowy wieloryba generuje raporty miesięczne jednocześnie.</p>
+    </section>
+  </div>
+</main>
+<script src="/static/ops.js"></script>
+</body>
+</html>
