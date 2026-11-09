@@ -1,8 +1,8 @@
 {
   "name": "erp-spike",
-  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12-bookworm",
   "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    "ghcr.io/devcontainers/features/docker-in-docker:2": { "moby": false }
   },
   "hostRequirements": { "cpus": 4 },
   "postCreateCommand": "pip install httpx && docker compose up -d --build && docker compose run --rm api python -m app.seed",
