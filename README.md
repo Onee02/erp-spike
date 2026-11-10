@@ -1,79 +1,88 @@
-# Mini-ERP multi-tenant base (spike starter)
+# Mini-ERP: the whale customer
 
-A deliberately simple multi-tenant "ERP" for the exercise *Refinement of the Whale*.
-It reproduces the situation from the exercise: **300 small tenants + 1 big customer
-(tenant 1) on one shared PostgreSQL and one API process**. It is not a product.
-It is a thing you can measure, break, and modify in a spike.
+This is a small demo of a cloud business system (an "ERP") used in the exercise
+*Refinement of the Whale*. You do not need to read or understand any code to use it.
 
-```
- loadtest.py ──HTTP──▶  FastAPI (1 process, 1 connection pool, max 10)  ──▶  PostgreSQL (shared)
-  small tenants: GET/POST /t/{id}/orders      │                                orders, order_lines
-  whale: GET /t/1/reports/monthly (heavy)     └─ /admin/metrics (p95 whale vs. small tenants)
-```
+## The business situation
 
-## Quick start
+You run a cloud ERP for small businesses. Every customer (called a *tenant*) has 5 to 20
+users who enter orders and look at reports.
+
+- **300 small customers** pay about €99 a month each.
+- All of them share **one system and one database**. This keeps costs low.
+- A distributor with **1,200 users** wants to join. They would pay **€6,000 a month**
+  on a 12-month contract. We call this big customer **the whale**.
+- They require **99.9% availability** (a promise that the system works almost all the time)
+  and **separation of their data** from everyone else's.
+
+The catch: the system was never built for a customer this big. In a test it had to handle
+about 8 times today's peak load, and the database grew by 35%. Worst of all, the whale's
+**month-end reports** slowed the test system down for everybody else.
+
+Sales needs a go / no-go decision within a week. The question for the exercise:
+**can we take on the whale without hurting our 300 small customers, and what would it cost?**
+
+## What the application shows
+
+The application has two pages.
+
+**Customer** (the main page). This is what one customer sees: their latest orders, a form
+for a new order, and a button that creates the monthly report. The label *System speed* in
+the top bar shows how long the last action took (green is fast, red is slow).
+
+**Operations.** A control panel for setting up the situation:
+
+- **Remove whale / Add whale** takes the big customer out of the system or puts them back.
+- **Simulate month-end** makes the whale's finance team run their monthly reports all at
+  once, as they would on the last day of the month.
+
+### Try it yourself
+
+1. Open the **Customer** page and click around as a small customer. Everything is fast.
+2. Open **Operations** and click **Simulate month-end**.
+3. Go back to the **Customer** page and try again. The system is now slow, and after a few
+   seconds the page stops working. This is what the small customers would experience.
+4. On **Operations**, click **Remove whale**. Now the small customer's page works again,
+   even though the simulation is still running.
+5. Click **Add whale** (it takes about 15 seconds) and **Stop simulation** to restore everything.
+
+This is the problem you are asked to solve.
+
+## How to run it
+
+The easiest way is in your web browser. You do not need to install anything.
+
+1. Log in to GitHub and open this repository.
+2. Choose your own branch from the branch list at the top left of the repository page.
+3. Click the green **Code** button, open the **Codespaces** tab and choose
+   **Create codespace on** your branch.
+4. Wait a few minutes. The first start builds the application and loads the data.
+   When it is ready, a browser tab with the application opens on its own.
+5. If it did not open, find the **Ports** tab at the bottom of the screen and click the
+   globe icon next to port **8000**.
+
+Notes:
+
+- A Codespace uses your free monthly hours. When you finish, stop it
+  (github.com/codespaces, then **Stop codespace**). It also stops by itself after 30
+  minutes without activity.
+- Pages: the main page is the address of port 8000, and **Operations** is the same address
+  followed by `/ops`.
+
+### Running on your own computer (optional)
+
+If you have Docker Desktop installed and running, open a terminal in the project folder and run:
 
 ```bash
-docker compose up -d --build                  # Postgres + API on :8000
-docker compose run --rm api python -m app.seed   # 300 small tenants + whale (+35% data)
-curl localhost:8000/t/5/orders?limit=3        # a small tenant
-curl localhost:8000/t/1/reports/monthly       # the heavy month-end report
-
-pip install httpx                             # for the load test (runs on your machine)
-python loadtest/loadtest.py --label baseline  # results saved to results/baseline.json
-curl localhost:8000/admin/metrics             # whale vs. small tenants, pool pressure
-python cost_model.py                          # margin per option
+docker compose up -d --build
 ```
 
-**Read the baseline first.** The load test runs two phases: small tenants alone, then
-small tenants + whale report workers. The key number is the p95 of *small tenants*
-between the two phases. In our reference run it grew about 6x (roughly 17 ms to 100 ms)
-while nobody changed anything. Your numbers will differ with your laptop.
+```bash
+docker compose run --rm api python -m app.seed
+```
 
-## What is deliberately naive
+Then open <http://localhost:8000> in your browser. To switch it off:
 
-- One API process, one connection pool (`POOL_MAX=10`) shared by all tenants.
-- One database, tenant separation only through the `tenant_id` column.
-- Heavy report runs on the same database as the OLTP traffic.
-- No limits, no throttling, no caching. Tenant comes from the URL, not from a token.
-
-## Where to hook in
-
-| Hook | File | What is already there |
-|---|---|---|
-| Tenant routing | `app/db.py` | `TENANT_DSN_MAP` sends chosen tenants to another database |
-| Guardrail | `app/guardrail.py` | `check()` runs before every tenant endpoint and does nothing yet |
-| Heavy query | `app/main.py` `monthly_report` | plain aggregate over `orders` + `order_lines` |
-| Metrics | `app/guardrail.py`, `/admin/metrics` | p50/p95/p99 whale vs. small, pool `requests_waiting` |
-| Cost | `cost_model.py` | edit the numbers, replace estimates with what you measured |
-
-## Spike ideas (pick one question, do not try them all)
-
-- **A. Dedicated database for the whale.** Uncomment `db_whale` and `TENANT_DSN_MAP` in
-  `docker-compose.yml`, apply `db/init.sql` to it, and load the whale's data into it.
-  Does the small-tenant p95 recover? Note: a second database on the *same* server shares
-  CPU and disk, and the API process and its pool are still shared. Find out what is
-  really isolated and what is not.
-- **B. Per-tenant guardrail.** Implement `check()`: a concurrency cap or rate limit per
-  tenant, maybe a separate budget for heavy reports. What happens to small-tenant p95,
-  and what does the whale experience (latency, 429s)? Is that acceptable under a 99.9% SLA?
-- **C. Make the report cheaper.** Pre-aggregation, materialized view, index change,
-  or read replica. How much DB time does one report take before and after, and what
-  does freshness cost you?
-- **D. Bulkhead the pool.** Give reports their own small connection pool so they cannot
-  starve normal requests. Cheapest fix, but what does it not fix?
-- **E. What does it cost?** Combine any of the above with `cost_model.py` and your
-  measurements to check whether the 60% margin survives.
-
-## Rules of the spike
-
-1. State the question and the no-go threshold **before** you change code.
-2. Do not change `loadtest.py` between runs. Change one thing at a time.
-3. Save every run with `--label`, so the before/after comparison is in `results/`.
-4. Time-box it. A clear "we do not know, because..." is a valid result.
-
-## 5-minute presentation
-
-Question and hypothesis; what you changed (show the diff, not the whole code);
-before/after table (small-tenant p95, whale report time, errors);
-monthly cost impact; verdict: go / no-go / go-if, and which assumption is still open.
+```bash
+docker compose down
+```
