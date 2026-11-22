@@ -45,11 +45,40 @@ services:
     environment:
       DATABASE_URL: postgresql://erp:erp@db:5432/erp
       POOL_MAX: "10"
-      TENANT_DSN_MAP: '{"1":"postgresql://erp:erp@db_whale:5432/erp"}'
-    ports:
-      - "8000:8000"
+      TENANT_DSN_MAP: '{}'
+      TENANT_GROUP: small
+    cpus: "1.0"
+    mem_limit: 512m
     depends_on:
       db:
         condition: service_healthy
+
+  api_whale:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://erp:erp@db_whale:5432/erp
+      POOL_MAX: "10"
+      TENANT_DSN_MAP: '{}'
+      TENANT_GROUP: whale
+      SIM_API_URL: http://127.0.0.1:8000
+      SIM_WHALE_WORKERS: "40"
+    cpus: "1.0"
+    mem_limit: 512m
+    depends_on:
       db_whale:
         condition: service_healthy
+
+  proxy:
+    image: nginx:stable-alpine
+    environment:
+      SMALL_UPSTREAM: api:8000
+      WHALE_UPSTREAM: api_whale:8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    cpus: "0.25"
+    mem_limit: 64m
+    depends_on:
+      api:
+        condition: service_started

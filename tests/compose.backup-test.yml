@@ -1,0 +1,38 @@
+# Used ONLY with an explicit, newly generated erp-backup-test-<id> project name.
+# No application, published ports, host mounts, persistent volumes, or shared network.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: erp
+      POSTGRES_PASSWORD: disposable-test-only
+      POSTGRES_DB: erp
+    network_mode: none
+    tmpfs:
+      - /var/lib/postgresql/data:size=268435456
+    mem_limit: 512m
+    labels:
+      org.erp-spike.backup-test: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp -d erp"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  db_whale:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: erp
+      POSTGRES_PASSWORD: disposable-test-only
+      POSTGRES_DB: erp
+    network_mode: none
+    tmpfs:
+      - /var/lib/postgresql/data:size=268435456
+    mem_limit: 512m
+    labels:
+      org.erp-spike.backup-test: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp -d erp"]
+      interval: 2s
+      timeout: 3s
+      retries: 30

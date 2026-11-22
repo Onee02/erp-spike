@@ -1,0 +1,97 @@
+# Standalone disposable stack; never merge this with docker-compose.yml.
+services:
+  db:
+    image: postgres:16
+    environment: {POSTGRES_USER: erp, POSTGRES_PASSWORD: worker-test-only, POSTGRES_DB: erp}
+    tmpfs: ["/var/lib/postgresql/data:size=536870912"]
+    cpus: "2"
+    mem_limit: 1g
+    labels: {org.erp-spike.worker-test: "true"}
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U erp -d erp"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  db_whale:
+    image: postgres:16
+    environment: {POSTGRES_USER: erp, POSTGRES_PASSWORD: worker-test-only, POSTGRES_DB: erp}
+    tmpfs: ["/var/lib/postgresql/data:size=536870912"]
+    cpus: "2"
+    mem_limit: 1g
+    labels: {org.erp-spike.worker-test: "true"}
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U erp -d erp"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  api:
+    image: erp-spike-worker-test:local
+    build: ..
+    environment:
+      TENANT_GROUP: ${APP_MODE}
+      DATABASE_URL: postgresql://erp:worker-test-only@db:5432/erp
+      TENANT_DSN_MAP: ${APP_DSN_MAP}
+      POOL_MAX: "10"
+    cpus: ${APP_CPUS}
+    mem_limit: ${APP_MEMORY}
+    labels: {org.erp-spike.worker-test: "true"}
+    depends_on:
+      db: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  api_whale:
+    image: erp-spike-worker-test:local
+    profiles: [split]
+    environment:
+      TENANT_GROUP: whale
+      DATABASE_URL: postgresql://erp:worker-test-only@db_whale:5432/erp
+      TENANT_DSN_MAP: '{}'
+      POOL_MAX: "10"
+      SIM_WHALE_WORKERS: "4"
+      SIM_API_URL: http://127.0.0.1:8000
+    cpus: "1"
+    mem_limit: 512m
+    labels: {org.erp-spike.worker-test: "true"}
+    depends_on:
+      db_whale: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  proxy:
+    image: nginx:stable-alpine
+    environment:
+      SMALL_UPSTREAM: api:8000
+      WHALE_UPSTREAM: ${TEST_WHALE_UPSTREAM}
+    volumes:
+      - ../nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    cpus: "0.25"
+    mem_limit: 64m
+    labels: {org.erp-spike.worker-test: "true"}
+    depends_on:
+      api: {condition: service_healthy}
+    healthcheck:
+      test: [CMD-SHELL, "wget -q -O /dev/null http://127.0.0.1:8000/health"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  client:
+    image: erp-spike-worker-test:local
+    profiles: [tools]
+    entrypoint: [python]
+    environment:
+      WORKER_TEST_PROJECT: ${WORKER_TEST_PROJECT}
+    volumes:
+      - ../worker_tests:/srv/worker_tests:ro
+      - ../loadtest:/srv/loadtest:ro
+      - ${WORKER_TEST_RESULTS}:/srv/results
+    cpus: "1"
+    mem_limit: 512m
+    labels: {org.erp-spike.worker-test: "true"}
+networks:
+  default:
+    internal: true

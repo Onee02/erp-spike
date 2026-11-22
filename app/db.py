@@ -1,11 +1,4 @@
-"""Database access layer.
-
-SPIKE HOOK #1 - tenant routing.
-Every request obtains its connection through `tenant_conn(tenant_id)`.
-Today all tenants share one pool and one database. To test a dedicated
-database for a tenant, set TENANT_DSN_MAP (see README) - the routing is
-already here, you only have to provide the second database.
-"""
+"""Process-local connection pools and tenant routing, protected by worker ownership."""
 import json
 import os
 import threading
@@ -13,6 +6,8 @@ from contextlib import contextmanager
 
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
+
+from . import worker
 
 DEFAULT_DSN = os.getenv("DATABASE_URL", "postgresql://erp:erp@localhost:5432/erp")
 POOL_MAX = int(os.getenv("POOL_MAX", "10"))
@@ -40,6 +35,7 @@ def _pool_for(dsn: str) -> ConnectionPool:
 
 
 def dsn_for(tenant_id: int) -> str:
+    worker.require_tenant(tenant_id)
     return TENANT_DSN_MAP.get(tenant_id, DEFAULT_DSN)
 
 
@@ -53,7 +49,9 @@ def tenant_conn(tenant_id: int):
 def pool_stats() -> dict:
     """Pool pressure per database - 'requests_waiting' > 0 means queueing."""
     out = {}
-    for dsn, pool in _pools.items():
+    with _lock:
+        pools = list(_pools.items())
+    for dsn, pool in pools:
         s = pool.get_stats()
         label = dsn.split("@")[-1]  # hide credentials
         out[label] = {

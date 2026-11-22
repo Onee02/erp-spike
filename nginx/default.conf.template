@@ -1,0 +1,30 @@
+# Docker's entrypoint substitutes only the upstream environment variables.
+# $uri is normalized for matching; the original URI/query/body goes upstream.
+map $uri $erp_backend {
+    default ${SMALL_UPSTREAM};
+    ~^/t/0*1(/|$) ${WHALE_UPSTREAM};
+    ~^/admin/(whale|simulation)(/|$) ${WHALE_UPSTREAM};
+    ~^/admin/metrics/whale(/|$) ${WHALE_UPSTREAM};
+}
+
+server {
+    listen 8000;
+    server_name _;
+    # Resolve on requests so a missing/restarted whale cannot prevent small service startup.
+    resolver 127.0.0.11 valid=5s ipv6=off;
+    resolver_timeout 2s;
+    client_max_body_size 1m;
+    proxy_connect_timeout 2s;
+    proxy_read_timeout 120s;
+    proxy_send_timeout 65s;
+    proxy_http_version 1.1;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    # Never retry a failed whale request on the small worker.
+    proxy_next_upstream off;
+
+    location / {
+        proxy_pass http://$erp_backend$request_uri;
+    }
+}

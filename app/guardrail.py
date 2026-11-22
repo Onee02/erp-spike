@@ -1,15 +1,9 @@
-"""Per-tenant metrics and the guardrail hook.
-
-SPIKE HOOK #2 - protect small tenants.
-`check()` runs before every tenant endpoint. Today it only lets everything
-through. Implement your guardrail here (rate limit, concurrency cap per
-tenant, separate "heavy report" budget, ...).
-"""
+"""Per-process tenant metrics and the tenant-group guardrail."""
 import re
 import threading
 from collections import defaultdict, deque
 
-from fastapi import HTTPException
+from . import worker
 
 WHALE_ID = 1
 _PATH = re.compile(r"^/t/(\d+)/")
@@ -28,15 +22,9 @@ def record(tenant_id: int, ms: float, status: int) -> None:
         _lat[tenant_id].append((ms, status))
 
 
-def check(tenant_id: int) -> int:
-    """FastAPI dependency. Raise HTTPException(429) to throttle a tenant.
-
-    Example idea (not implemented): keep an in-memory counter of in-flight
-    heavy requests per tenant and reject above a limit.
-    """
-    # if too_many_in_flight(tenant_id):
-    #     raise HTTPException(status_code=429, detail="tenant over its budget")
-    return tenant_id
+async def check(tenant_id: int) -> int:
+    """Reject the wrong group before occupying a synchronous request thread."""
+    return worker.require_tenant(tenant_id)
 
 
 def _pct(values: list[float], p: float) -> float | None:

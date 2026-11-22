@@ -10,11 +10,11 @@ from pathlib import Path
 
 import psycopg
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import db, guardrail, simulation, whale
+from . import db, guardrail, simulation, whale, worker
 
 app = FastAPI(title="Mini-ERP multi-tenant base (spike starter)")
 
@@ -23,7 +23,22 @@ app = FastAPI(title="Mini-ERP multi-tenant base (spike starter)")
 async def measure(request: Request, call_next):
     tenant_id = guardrail.tenant_from_path(request.url.path)
     start = time.perf_counter()
-    response = await call_next(request)
+    try:
+        if tenant_id is not None:
+            worker.require_tenant(tenant_id)
+        if request.url.path.startswith(("/admin/whale", "/admin/simulation")):
+            worker.require_whale()
+    except HTTPException as exc:
+        response = JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+    else:
+        try:
+            response = await call_next(request)
+        except Exception:
+            if tenant_id is not None:
+                guardrail.record(tenant_id, (time.perf_counter() - start) * 1000, 500)
+            raise
+    response.headers["X-ERP-Worker"] = worker.GROUP
+    response.headers["X-ERP-Instance"] = worker.INSTANCE
     if tenant_id is not None:
         guardrail.record(tenant_id, (time.perf_counter() - start) * 1000, response.status_code)
     return response
@@ -55,16 +70,20 @@ def page_ops():
 
 @app.get("/api/tenants")
 def list_tenants():
-    """Tenant list for the UI dropdown: the whale plus the first small tenants."""
-    with db.tenant_conn(guardrail.WHALE_ID) as conn:
-        return conn.execute(
-            "SELECT id, name, plan FROM tenants WHERE id <= 20 ORDER BY id"
-        ).fetchall()
+    """The shared UI must not depend on the whale database being available."""
+    directory = [{"id": 1, "name": "Whale Distribution", "plan": "enterprise"}]
+    if worker.GROUP != "whale":
+        with db.tenant_conn(2) as conn:
+            directory += conn.execute(
+                "SELECT id, name, plan FROM tenants WHERE id BETWEEN 2 AND 301 ORDER BY id"
+            ).fetchall()
+    return directory
 
 
 @app.get("/health")
-def health():
-    return {"ok": True}
+async def health():
+    """Process liveness; deliberately does not query either database."""
+    return {"ok": True, "worker": worker.info()}
 
 
 @app.get("/t/{tenant_id}/orders")
@@ -119,16 +138,40 @@ def monthly_report(tenant_id: int = Depends(guardrail.check), year: int = 2026):
         ).fetchall()
 
 
-@app.get("/admin/metrics")
-def metrics():
+def local_metrics():
     """Whale vs. small tenants latency + connection pool pressure."""
-    return {**guardrail.snapshot(), "pools": db.pool_stats()}
+    return {"worker": worker.info(), "sample_scope": "last 1000 requests per tenant in this process",
+            **guardrail.snapshot(), "pools": db.pool_stats()}
+
+
+@app.get("/admin/metrics")
+async def metrics():
+    return local_metrics()
+
+
+@app.get("/admin/metrics/{group}")
+async def group_metrics(group: str):
+    check_metrics_group(group)
+    return local_metrics()
+
+
+def check_metrics_group(group: str):
+    if group not in {"small", "whale"}:
+        raise HTTPException(status_code=404, detail="unknown worker group")
+    worker.require_tenant(1 if group == "whale" else 2)
 
 
 @app.post("/admin/metrics/reset")
-def metrics_reset():
+async def metrics_reset():
     guardrail.reset()
     return {"reset": True}
+
+
+@app.post("/admin/metrics/{group}/reset")
+async def group_metrics_reset(group: str):
+    check_metrics_group(group)
+    guardrail.reset()
+    return {"reset": True, "worker": worker.info()}
 
 
 @app.get("/admin/whale")
@@ -149,17 +192,17 @@ def whale_add():
 
 
 @app.get("/admin/simulation")
-def simulation_status():
-    return {"running": simulation.running()}
+async def simulation_status():
+    return simulation.status()
 
 
 @app.post("/admin/simulation/start")
-def simulation_start():
+async def simulation_start():
     simulation.start()
-    return {"running": simulation.running()}
+    return simulation.status()
 
 
 @app.post("/admin/simulation/stop")
-def simulation_stop():
+async def simulation_stop():
     simulation.stop()
-    return {"running": False}
+    return simulation.status()
