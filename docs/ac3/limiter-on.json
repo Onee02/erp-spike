@@ -1,0 +1,75 @@
+{
+  "status": "completed",
+  "settings": {
+    "performance": true,
+    "duration": 60,
+    "repeats": 1,
+    "small_workers": 10,
+    "whale_workers": 40
+  },
+  "trials": [
+    {
+      "mode": "shared",
+      "repeat": 1,
+      "small_only": {
+        "requests": 14389,
+        "p95_ms": 34.3,
+        "p99_ms": 150.2,
+        "errors": 0,
+        "error_rate_pct": 0.0
+      },
+      "with_whale": {
+        "requests": 11369,
+        "p95_ms": 54.7,
+        "p99_ms": 147.4,
+        "errors": 0,
+        "error_rate_pct": 0.0
+      },
+      "whale": {
+        "requests": 434,
+        "rps": 7.2,
+        "errors": 0,
+        "p50_ms": 6076.9,
+        "p95_ms": 6248.0,
+        "p99_ms": 6299.6
+      },
+      "degradation_pct": {
+        "p95_ms": 59.48,
+        "p99_ms": -1.86
+      }
+    },
+    {
+      "mode": "split",
+      "repeat": 1,
+      "small_only": {
+        "requests": 14244,
+        "p95_ms": 39.2,
+        "p99_ms": 86.3,
+        "errors": 0,
+        "error_rate_pct": 0.0
+      },
+      "with_whale": {
+        "requests": 11464,
+        "p95_ms": 55.3,
+        "p99_ms": 148.9,
+        "errors": 0,
+        "error_rate_pct": 0.0
+      },
+      "whale": {
+        "requests": 426,
+        "rps": 7.1,
+        "errors": 0,
+        "p50_ms": 6181.1,
+        "p95_ms": 6335.9,
+        "p99_ms": 6379.2
+      },
+      "degradation_pct": {
+        "p95_ms": 41.07,
+        "p99_ms": 72.54
+      }
+    }
+  ],
+  "limits": "Application budget: 2 CPUs/1 GiB total in both layouts; DBs: 2 CPUs/1 GiB each",
+  "claims": "Synthetic test only; no 1200-user peak, <10% target, or 99.9% SLA is proven.",
+  "functional_tests": "passed"
+}

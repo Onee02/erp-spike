@@ -28,6 +28,7 @@ services:
     image: erp-spike-worker-test:local
     build: ..
     environment:
+      WHALE_REPORT_CONCURRENCY: "${WHALE_REPORT_CONCURRENCY:-2}"
       TENANT_GROUP: ${APP_MODE}
       DATABASE_URL: postgresql://erp:worker-test-only@db:5432/erp
       TENANT_DSN_MAP: ${APP_DSN_MAP}
@@ -46,6 +47,7 @@ services:
     image: erp-spike-worker-test:local
     profiles: [split]
     environment:
+      WHALE_REPORT_CONCURRENCY: "${WHALE_REPORT_CONCURRENCY:-2}"
       TENANT_GROUP: whale
       DATABASE_URL: postgresql://erp:worker-test-only@db_whale:5432/erp
       TENANT_DSN_MAP: '{}'

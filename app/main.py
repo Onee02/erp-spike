@@ -15,6 +15,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import db, guardrail, simulation, whale, worker
+from .report_limit import report_slot
+
 
 app = FastAPI(title="Mini-ERP multi-tenant base (spike starter)")
 
@@ -117,7 +119,10 @@ def create_order(order: OrderIn, tenant_id: int = Depends(guardrail.check)):
     return {"id": row["id"], "total": total}
 
 
-@app.get("/t/{tenant_id}/reports/monthly")
+@app.get(
+    "/t/{tenant_id}/reports/monthly",
+    dependencies=[Depends(report_slot)],
+)
 def monthly_report(tenant_id: int = Depends(guardrail.check), year: int = 2026):
     """Heavy, OLAP-style query: the month-end report that slowed everyone down."""
     with db.tenant_conn(tenant_id) as conn:
